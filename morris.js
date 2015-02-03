@@ -1237,7 +1237,7 @@ Licensed under the BSD-2-Clause License.
     };
 
     Line.prototype.drawLinePath = function(path, lineColor, lineIndex) {
-      return this.raphael.path(path).attr('stroke', lineColor).attr('stroke-width', this.lineWidthForSeries(lineIndex));
+      return this.raphael.path(path).attr('stroke', lineColor).attr('stroke-width', this.lineWidthForSeries(lineIndex)).attr('stroke-dasharray', this.dashArrayForSeries(lineIndex));
     };
 
     Line.prototype.drawLinePoint = function(xPos, yPos, pointColor, lineIndex) {
@@ -1265,6 +1265,15 @@ Licensed under the BSD-2-Clause License.
         return this.options.pointSize[index % this.options.pointSize.length];
       } else {
         return this.options.pointSize;
+      }
+    };
+    
+    Line.prototype.dashArrayForSeries = function(index) {
+      if (this.options.dashArrays instanceof Array) {
+        return this.options.dashArrays[index % this.options.dashArrays.length];
+      } else {
+        if (!this.options.dashArrays) this.options.dashArrays = "";
+        return this.options.dashArrays;
       }
     };
 
