@@ -185,7 +185,9 @@ Licensed under the BSD-2-Clause License.
       postUnits: '',
       preUnits: '',
       ymax: 'auto',
+      y2max: 'auto',
       ymin: 'auto 0',
+      y2min: 'auto 0',
       goals: [],
       goalStrokeWidth: 1.0,
       goalLineColors: ['#666633', '#999966', '#cc6666', '#663333'],
@@ -194,7 +196,8 @@ Licensed under the BSD-2-Clause License.
       eventLineColors: ['#005a04', '#ccffbb', '#3a5f0b', '#005502'],
       rangeSelect: null,
       rangeSelectColor: '#eef',
-      resize: false
+      resize: false,
+      yaxes: null
     };
 
     Grid.prototype.setData = function(data, redraw) {
@@ -211,13 +214,13 @@ Licensed under the BSD-2-Clause License.
         }
         return;
       }
-      ymax = this.cumulative ? 0 : null;
-      ymin = this.cumulative ? 0 : null;
+      ymax = {'y':this.cumulative ? 0 : null, 'y2': this.cumulative ? 0 : null};
+      ymin = {'y':this.cumulative ? 0 : null, 'y2': this.cumulative ? 0 : null};
       if (this.options.goals.length > 0) {
         minGoal = Math.min.apply(Math, this.options.goals);
         maxGoal = Math.max.apply(Math, this.options.goals);
-        ymin = ymin != null ? Math.min(ymin, minGoal) : minGoal;
-        ymax = ymax != null ? Math.max(ymax, maxGoal) : maxGoal;
+        ymin.y = ymin.y != null ? Math.min(ymin.y, minGoal) : minGoal;
+        ymax.y = ymax.y != null ? Math.max(ymax.y, maxGoal) : maxGoal;
       }
       this.data = (function() {
         var _i, _len, _results;
@@ -241,7 +244,7 @@ Licensed under the BSD-2-Clause License.
               ret.label = this.options.xLabelFormat(ret);
             }
           }
-          total = 0;
+          total = {"y":0, "y2":0};
           ret.y = (function() {
             var _j, _len1, _ref, _results1;
             _ref = this.options.ykeys;
@@ -255,21 +258,24 @@ Licensed under the BSD-2-Clause License.
               if ((yval != null) && typeof yval !== 'number') {
                 yval = null;
               }
+	      var axe = this.yAxe(_j);
               if ((yval != null) && this.hasToShow(idx)) {
                 if (this.cumulative) {
-                  total += yval;
+                  total[axe] += yval;
                 } else {
-                  if (ymax != null) {
-                    ymax = Math.max(yval, ymax);
-                    ymin = Math.min(yval, ymin);
+                  if (ymax[axe] != null) {
+                    ymax[axe] = Math.max(yval, ymax[axe]);
+                    ymin[axe] = Math.min(yval, ymin[axe]);
                   } else {
-                    ymax = ymin = yval;
+                    ymax[axe] = ymin[axe] = yval;
                   }
                 }
               }
               if (this.cumulative && (total != null)) {
-                ymax = Math.max(total, ymax);
-                ymin = Math.min(total, ymin);
+                ymax.y = Math.max(total, ymax.y);
+                ymin.y = Math.min(total, ymin.y);
+                ymax.y2 = Math.max(total, ymax.y2);
+                ymin.y2 = Math.min(total, ymin.y2);
               }
               _results1.push(yval);
             }
@@ -312,25 +318,45 @@ Licensed under the BSD-2-Clause License.
         this.xmin -= 1;
         this.xmax += 1;
       }
-      this.ymin = this.yboundary('min', ymin);
-      this.ymax = this.yboundary('max', ymax);
+      this.ymin = this.yboundary('min', 'y', ymin.y);
+      this.ymax = this.yboundary('max', 'y', ymax.y);
       if (this.ymin === this.ymax) {
-        if (ymin) {
+        if (ymin.y) {
           this.ymin -= 1;
         }
         this.ymax += 1;
+      }
+      this.y2min = this.yboundary('min', 'y2', ymin.y2);
+      this.y2max = this.yboundary('max', 'y2', ymax.y2);
+      if (this.y2min === this.y2max) {
+        if (ymin.y2) {
+          this.y2min -= 1;
+        }
+        this.y2max += 1;
       }
       if (((_ref1 = this.options.axes) === true || _ref1 === 'both' || _ref1 === 'y') || this.options.grid === true) {
         if (this.options.ymax === this.gridDefaults.ymax && this.options.ymin === this.gridDefaults.ymin) {
           this.grid = this.autoGridLines(this.ymin, this.ymax, this.options.numLines);
           this.ymin = Math.min(this.ymin, this.grid[0]);
           this.ymax = Math.max(this.ymax, this.grid[this.grid.length - 1]);
+          this.grid2 = this.autoGridLines(this.y2min, this.y2max, this.options.numLines);
+          this.y2min = Math.min(this.y2min, this.grid2[0]);
+          this.y2max = Math.max(this.y2max, this.grid2[this.grid2.length - 1]);
         } else {
           step = (this.ymax - this.ymin) / (this.options.numLines - 1);
           this.grid = (function() {
             var _j, _ref2, _ref3, _results;
             _results = [];
             for (y = _j = _ref2 = this.ymin, _ref3 = this.ymax; step > 0 ? _j <= _ref3 : _j >= _ref3; y = _j += step) {
+              _results.push(y);
+            }
+            return _results;
+          }).call(this);
+          step = (this.y2max - this.y2min) / (this.options.numLines - 1);
+          this.grid2 = (function() {
+            var _j, _ref2, _ref3, _results;
+            _results = [];
+            for (y = _j = _ref2 = this.y2min, _ref3 = this.y2max; step > 0 ? _j <= _ref3 : _j >= _ref3; y = _j += step) {
               _results.push(y);
             }
             return _results;
@@ -343,9 +369,9 @@ Licensed under the BSD-2-Clause License.
       }
     };
 
-    Grid.prototype.yboundary = function(boundaryType, currentValue) {
+    Grid.prototype.yboundary = function(boundaryType, axisName, currentValue) {
       var boundaryOption, suggestedValue;
-      boundaryOption = this.options["y" + boundaryType];
+      boundaryOption = this.options[axisName + boundaryType];
       if (typeof boundaryOption === 'string') {
         if (boundaryOption.slice(0, 4) === 'auto') {
           if (boundaryOption.length > 5) {
@@ -409,7 +435,7 @@ Licensed under the BSD-2-Clause License.
     };
 
     Grid.prototype._calc = function() {
-      var angle, bottomOffsets, gridLine, h, i, w, yLabelWidths, _ref, _ref1;
+      var angle, bottomOffsets, gridLine, h, i, w, yLabelWidths, y2LabelWidths=0, _ref, _ref1, _y2axeind;
       w = this.el.width();
       h = this.el.height();
       if (this.elementWidth !== w || this.elementHeight !== h || this.dirty) {
@@ -431,10 +457,33 @@ Licensed under the BSD-2-Clause License.
             }
             return _results;
           }).call(this);
+	  _y2axeind = this.options.yaxes && this.options.yaxes.indexOf("y2");
+	  if (_y2axeind > 0) {
+		  y2LabelWidths = (function() {
+		    var _i, _len, _ref1, _results, _y2axeind;
+		    _ref1 = this.grid2;
+		    _results = [];
+		    _y2axeind = this.options.yaxes.indexOf("y2");
+		    if (_y2axeind < 0) {
+		      _y2axeind = 0;
+		    }
+		    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+		      gridLine = _ref1[_i];
+		      _results.push(this.measureText(this.yAxisFormat(gridLine, _y2axeind)).width);
+		    }
+		    return _results;
+		  }).call(this);
+	  }
           if (!this.options.horizontal) {
             this.left += Math.max.apply(Math, yLabelWidths);
+            if (_y2axeind > 0) {
+              this.right -= Math.max.apply(Math, y2LabelWidths);
+            }
           } else {
             this.bottom -= Math.max.apply(Math, yLabelWidths);
+            if (_y2axeind > 0) {
+              this.top += Math.max.apply(Math, y2LabelWidths);
+            }
           }
         }
         if ((_ref1 = this.options.axes) === true || _ref1 === 'both' || _ref1 === 'x') {
@@ -462,6 +511,7 @@ Licensed under the BSD-2-Clause License.
         if (!this.options.horizontal) {
           this.dx = this.width / (this.xmax - this.xmin);
           this.dy = this.height / (this.ymax - this.ymin);
+	  this.dy2 = this.height / (this.y2max - this.y2min);
           this.yStart = this.bottom;
           this.yEnd = this.top;
           this.xStart = this.left;
@@ -471,6 +521,7 @@ Licensed under the BSD-2-Clause License.
         } else {
           this.dx = this.height / (this.xmax - this.xmin);
           this.dy = this.width / (this.ymax - this.ymin);
+          this.dy2 = this.width / (this.y2max - this.y2min);
           this.yStart = this.left;
           this.yEnd = this.right;
           this.xStart = this.top;
@@ -483,12 +534,26 @@ Licensed under the BSD-2-Clause License.
         }
       }
     };
+    
+    Grid.prototype.yAxe = function(ind) {
+      var axe = "y";
+      if (ind > 0 && this.options.yaxes) {
+        if (this.options.yaxes[ind] == "y2") {
+          axe = "y2";
+        }
+      }
+      return axe;
+    }
 
-    Grid.prototype.transY = function(y) {
+    Grid.prototype.transY = function(y, ind) {
+      if ( ind === undefined ) {
+        ind = -1;
+      }
+      var axe = this.yAxe(ind);
       if (!this.options.horizontal) {
-        return this.bottom - (y - this.ymin) * this.dy;
+        return this.bottom - (y - this[axe + 'min']) * this['d' + axe];
       } else {
-        return this.left + (y - this.ymin) * this.dy;
+        return this.left + (y - this[axe + 'min']) * this['d' + axe];
       }
     };
 
@@ -522,8 +587,11 @@ Licensed under the BSD-2-Clause License.
       return ret;
     };
 
-    Grid.prototype.yAxisFormat = function(label) {
-      return this.yLabelFormat(label, 0);
+    Grid.prototype.yAxisFormat = function(label, ind) {
+      if (ind === 'undefined') {
+        ind = 0;
+      }
+      return this.yLabelFormat(label, ind);
     };
 
     Grid.prototype.yLabelFormat = function(label, i) {
@@ -537,27 +605,44 @@ Licensed under the BSD-2-Clause License.
     Grid.prototype.getYAxisLabelX = function() {
       return this.left - this.options.padding / 2;
     };
+    
+    Grid.prototype.getY2AxisLabelX = function() {
+      return this.right + this.options.padding / 2;
+    };
 
     Grid.prototype.drawGrid = function() {
-      var basePos, lineY, pos, _i, _len, _ref, _ref1, _ref2, _results;
+      var basePos, basePos2, lineY, lineY2, pos, _i, _len, _ref, _ref1, _ref12, _ref2, _y2axeind, _results;
       if (this.options.grid === false && ((_ref = this.options.axes) !== true && _ref !== 'both' && _ref !== 'y')) {
         return;
       }
       if (!this.options.horizontal) {
         basePos = this.getYAxisLabelX();
+        basePos2 = this.getY2AxisLabelX();
       } else {
         basePos = this.getXAxisLabelY();
+        basePos2 = this.getX2AxisLabelY();
       }
       _ref1 = this.grid;
+      _ref12 = this.grid2;
       _results = [];
+      _y2axeind = -1;
+      if (this.options.yaxes) {
+      	this.options.yaxes.indexOf("y2");
+      }
+      if (_y2axeind<0) {
+        _y2axeind = 0;
+      }
       for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
         lineY = _ref1[_i];
+        lineY2 = _ref12[_i];
         pos = this.transY(lineY);
         if ((_ref2 = this.options.axes) === true || _ref2 === 'both' || _ref2 === 'y') {
           if (!this.options.horizontal) {
             this.drawYAxisLabel(basePos, pos, this.yAxisFormat(lineY));
+            this.drawYAxisLabel(basePos2, pos, this.yAxisFormat(lineY2, _y2axeind), 'start');
           } else {
             this.drawXAxisLabel(pos, basePos, this.yAxisFormat(lineY));
+            this.drawXAxisLabel(pos, basePos2, this.yAxisFormat(lineY2, _y2axeind), 'start');
           }
         }
         if (this.options.grid) {
@@ -637,8 +722,11 @@ Licensed under the BSD-2-Clause License.
       }
     };
 
-    Grid.prototype.drawYAxisLabel = function(xPos, yPos, text) {
-      return this.raphael.text(xPos, yPos, text).attr('font-size', this.options.gridTextSize).attr('font-family', this.options.gridTextFamily).attr('font-weight', this.options.gridTextWeight).attr('fill', this.options.gridTextColor).attr('text-anchor', 'end');
+    Grid.prototype.drawYAxisLabel = function(xPos, yPos, text, anchor) {
+      if (anchor === undefined) {
+        anchor = 'end';
+      }
+      return this.raphael.text(xPos, yPos, text).attr('font-size', this.options.gridTextSize).attr('font-family', this.options.gridTextFamily).attr('font-weight', this.options.gridTextWeight).attr('fill', this.options.gridTextColor).attr('text-anchor', anchor);
     };
 
     Grid.prototype.drawGridLine = function(path) {
@@ -872,7 +960,7 @@ Licensed under the BSD-2-Clause License.
           for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
             y = _ref1[_j];
             if (y != null) {
-              _results1.push(this.transY(y));
+              _results1.push(this.transY(y, _j));
             } else {
               _results1.push(y);
             }
@@ -1674,6 +1762,10 @@ Licensed under the BSD-2-Clause License.
 
     Bar.prototype.getXAxisLabelY = function() {
       return this.bottom + (this.options.xAxisLabelTopPadding || this.options.padding / 2);
+    };
+    
+    Bar.prototype.getX2AxisLabelY = function() {
+      return this.top - (this.options.xAxisLabelTopPadding || this.options.padding / 2);
     };
 
     Bar.prototype.drawSeries = function() {
